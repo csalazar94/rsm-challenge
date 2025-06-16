@@ -15,6 +15,8 @@ db = dict(
     port=int(os.getenv("DB_PORT", "5432")),
     name=os.getenv("DB_NAME", "postgres"),
     pool_size=int(os.getenv("DB_POOL_SIZE", "10")),
+    pool_pre_ping=os.getenv("DB_POOL_PRE_PING", "true").lower() == "true",
+    pool_recycle=int(os.getenv("DB_POOL_RECYCLE", "300")),
 )
 
 vectordb = dict(

@@ -101,8 +101,6 @@ async def query(
     MAX_DOCS = 10
     context = "\n\n".join([doc.page_content for doc in docs[:MAX_DOCS]])
 
-    logger.debug(f"Context for question: {context}")
-
     PROMPT = f"""
     Answer the question based only on the context provided in the documents.
 
@@ -115,4 +113,17 @@ async def query(
     Answer in the same language as the original question:
     """
 
-    return await llm.ainvoke(PROMPT)
+    llm_response = await llm.ainvoke(PROMPT)
+    answer = str(llm_response.content)
+    sources = [
+        {
+            "filename": doc.metadata.get(
+                "source", None
+            ),  # not explicitly on instructions, but added for clarity
+            "page": doc.metadata.get("page_number", None),
+            "text": doc.page_content,
+        }
+        for doc in docs
+    ]
+
+    return {"answer": answer, "sources": sources}

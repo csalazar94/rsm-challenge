@@ -2,6 +2,7 @@ from fastapi import HTTPException
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import UnstructuredPDFLoader
 from langchain_community.vectorstores.utils import filter_complex_metadata
+from langchain_core.documents import Document
 from unstructured.cleaners.core import clean_extra_whitespace
 
 import logger
@@ -16,7 +17,7 @@ async def get_chunks_from_pdf(
     file_path: str,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
-):
+) -> list[Document]:
     """
     Extract and chunk text content from a PDF file using high-resolution processing.
 

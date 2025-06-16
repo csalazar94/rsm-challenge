@@ -8,6 +8,16 @@ embeddings = OpenAIEmbeddings(model=str(config.openai["embedding_model"]))
 
 
 def get_postgres_async_vectorstore():
+    """
+    Create and return an asynchronous PostgreSQL vector store instance.
+
+    Returns:
+        PGVector: An async-enabled PGVector instance configured with:
+            - Global embeddings model
+            - Collection name from config
+            - Async database engine connection
+            - JSONB support enabled
+    """
     vectorstore = PGVector(
         embeddings=embeddings,
         collection_name=f"{config.vectordb['collection']}",

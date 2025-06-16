@@ -1,11 +1,10 @@
 from fastapi import Depends, FastAPI
-from langchain.retrievers.multi_query import MultiQueryRetriever
-from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
 import config
 import dependencies
+import helpers
 import loaders
 import logger
 
@@ -42,56 +41,7 @@ async def query(
         model=str(config.openai["chat_model"]), temperature=config.llm["temperature"]
     )
 
-    translated_question = await llm.ainvoke(
-        f"Translate this question to English: {body.question}"
-    )
-
-    retriever = vectorstore.as_retriever(
-        search_type="similarity_score_threshold", search_kwargs={"score_threshold": 0.1}
-    )
-    prompt_retriever = PromptTemplate.from_template(
-        """
-        OBJECTIVE: Generate 1-5 variations of the original question to 
-        improve retrieval of relevant documents from vector database.
-
-        STRATEGY: Overcome similarity search limitations through query 
-        diversification.
-
-        GENERATION INSTRUCTIONS:
-        1. BREAKDOWN: If the question contains multiple concepts, create 
-           a sub-question for each concept
-        2. REFORMULATION: Generate alternative versions with synonyms or 
-           different structures
-        3. SPECIFICATION: Create more specific or general variants based 
-           on context
-
-        QUALITY CRITERIA:
-        - Maintain original search intent
-        - Ensure each variant provides unique value for retrieval
-
-        REQUIRED FORMAT:
-        One question per line, no numbering or additional formatting.
-
-        EXAMPLES:
-        Original question: "How do I reset my password and enable 2FA?"
-        Generated variations:
-        How can I reset my account password?
-        What steps are needed to enable two-factor authentication?
-        How do I change my login credentials?
-        What is the process for account security setup?
-        How do I recover access to my account?
-
-        ORIGINAL QUESTION: {question}
-        """
-    )
-    retriever_from_llm = MultiQueryRetriever.from_llm(
-        retriever=retriever,
-        llm=llm,
-        prompt=prompt_retriever,
-        include_original=True,
-    )
-
-    docs = await retriever_from_llm.ainvoke(str(translated_question.content))
+    docs = await helpers.get_relevant_docs(body.question, llm, vectorstore)
 
     if len(docs) == 0:
         return "No relevant information found."

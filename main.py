@@ -9,10 +9,11 @@ import helpers
 import loaders
 from logger import logger
 
-sentry_sdk.init(
-    dsn=config.sentry["dsn"],
-    send_default_pii=True,
-)
+if config.sentry["dsn"]:
+    sentry_sdk.init(
+        dsn=config.sentry["dsn"],
+        send_default_pii=True,
+    )
 
 
 app = FastAPI()

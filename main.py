@@ -1,3 +1,4 @@
+import sentry_sdk
 from fastapi import Depends, FastAPI
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
@@ -8,7 +9,17 @@ import helpers
 import loaders
 import logger
 
+sentry_sdk.init(
+    dsn=config.sentry["dsn"],
+    send_default_pii=True,
+)
+
 app = FastAPI()
+
+
+@app.get("/debug_error")
+async def debug_error():
+    raise Exception("This is a debug error to test Sentry integration.")
 
 
 @app.get("/health")
@@ -52,7 +63,7 @@ async def query(
     context = "\n\n".join([doc.page_content for doc in docs[:MAX_DOCS]])
 
     PROMPT = f"""
-    Answer the question based only on the context provided in the documents.
+    Answer the user question using only the provided information on documents.
 
     Documents:
     {context}

@@ -42,7 +42,3 @@ retriever = dict(
 sentry = dict(
     dsn=os.getenv("SENTRY_DSN", ""),
 )
-
-cors = dict(
-    allowed_origins=os.getenv("CORS_ALLOWED_ORIGINS", "").split(","),
-)

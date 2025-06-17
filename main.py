@@ -1,7 +1,7 @@
 import sentry_sdk
 from fastapi import Depends, FastAPI
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import config
 import dependencies
@@ -51,7 +51,9 @@ async def ingest(
 
 
 class QueryBody(BaseModel):
-    question: str = "Chapter 1 is about?"
+    question: str = Field(
+        min_length=1, max_length=1000, description="Question to ask about the documents"
+    )
 
 
 @app.post("/query")

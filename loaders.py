@@ -1,3 +1,5 @@
+import os
+
 from fastapi import HTTPException
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import UnstructuredPDFLoader
@@ -42,9 +44,29 @@ async def get_chunks_from_pdf(
         logger.info(f"Starting PDF processing for: {file_path}")
 
         # TODO: Add support for other file types
-        # TODO: Check if the file exists before processing
-        # TODO: Check if the file is a valid PDF
         # TODO: Add support for different PDF processing modes and strategies
+
+        if not os.path.exists(file_path):
+            logger.error(f"File not found: {file_path}")
+            raise HTTPException(
+                status_code=404,
+                detail=f"File not found: {file_path}",
+            )
+
+        if not file_path.lower().endswith(".pdf"):
+            logger.error(f"Unsupported file type: {file_path}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file type: {file_path}. Only PDF files are supported.",
+            )
+
+        file_size = os.path.getsize(file_path)
+        if file_size > 50 * 1024 * 1024:  # 50MB
+            raise HTTPException(
+                status_code=413,
+                detail=f"File size exceeds the limit of 50MB: {file_path}",
+            )
+
         loader = UnstructuredPDFLoader(
             file_path,
             mode=PDF_PROCESSING_MODE,
@@ -84,6 +106,6 @@ async def get_chunks_from_pdf(
         logger.error(f"Failed to process PDF {file_path}: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail=f"Ha ocurrido un error al obtener la información del archivo: {file_path}",
+            detail=f"An error occurred while processing file: {file_path}",
         )
     return chunks

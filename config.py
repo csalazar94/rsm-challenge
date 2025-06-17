@@ -6,6 +6,7 @@ load_dotenv()
 
 app = dict(
     environment=os.getenv("APP_ENVIRONMENT", "development"),
+    log_level=os.getenv("APP_LOG_LEVEL", "DEBUG").upper(),
 )
 
 db = dict(
@@ -32,6 +33,10 @@ openai = dict(
 
 llm = dict(
     temperature=float(os.getenv("LLM_TEMPERATURE", "0.2")),
+)
+
+retriever = dict(
+    score_threshold=float(os.getenv("RETRIEVER_SCORE_THRESHOLD", "0.3")),
 )
 
 sentry = dict(

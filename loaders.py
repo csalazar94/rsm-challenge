@@ -5,7 +5,7 @@ from langchain_community.vectorstores.utils import filter_complex_metadata
 from langchain_core.documents import Document
 from unstructured.cleaners.core import clean_extra_whitespace
 
-import logger
+from logger import logger
 
 DEFAULT_CHUNK_SIZE = 1500
 DEFAULT_CHUNK_OVERLAP = 300
@@ -39,6 +39,8 @@ async def get_chunks_from_pdf(
         infers table structure for improved document understanding.
     """
     try:
+        logger.info(f"Starting PDF processing for: {file_path}")
+
         # TODO: Add support for other file types
         # TODO: Check if the file exists before processing
         # TODO: Check if the file is a valid PDF
@@ -50,9 +52,14 @@ async def get_chunks_from_pdf(
             post_processors=[clean_extra_whitespace],
             infer_table_structure=True,
         )
+        logger.debug(
+            f"Configured PDF loader with mode={PDF_PROCESSING_MODE}, "
+            f"strategy={PDF_PROCESSING_STRATEGY}"
+        )
 
         docs = await loader.aload()
         if not docs or len(docs) == 0:
+            logger.warning(f"No documents found in PDF: {file_path}")
             raise HTTPException(
                 status_code=400,
                 detail=f"No documents found in the PDF file: {file_path}",
@@ -65,10 +72,16 @@ async def get_chunks_from_pdf(
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size, chunk_overlap=chunk_overlap
         )
+        logger.debug(
+            f"Configured text splitter: chunk_size={chunk_size}, "
+            f"overlap={chunk_overlap}"
+        )
         chunks = text_splitter.split_documents(filtered_docs)
-        logger.debug(f"Created {len(chunks)} text chunks from documents.")
+        logger.info(
+            f"Successfully processed PDF: {file_path} -> " f"{len(chunks)} chunks"
+        )
     except Exception as e:
-        logger.debug(e)
+        logger.error(f"Failed to process PDF {file_path}: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Ha ocurrido un error al obtener la información del archivo: {file_path}",

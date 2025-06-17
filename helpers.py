@@ -4,6 +4,9 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import PromptTemplate
 from langchain_postgres.vectorstores import PGVector
 
+import config
+from logger import logger
+
 
 async def get_relevant_docs(
     original_question: str, llm: BaseChatModel, vectorstore: PGVector
@@ -33,12 +36,21 @@ async def get_relevant_docs(
         >>> len(docs)
         5
     """
+    logger.info(f"Translating question: {original_question[:100]}...")
     translated_question = await llm.ainvoke(
-        f"Translate this question to English: {original_question}"
+        f"""If this text is not in English, translate it to English. 
+        If it's already in English, return it as is: {original_question}"
+        """
     )
+    logger.debug(f"Translated to: {translated_question.content}")
 
+    logger.debug(
+        f"Setting up retriever with score threshold: "
+        f"{config.retriever['score_threshold']}"
+    )
     retriever = vectorstore.as_retriever(
-        search_type="similarity_score_threshold", search_kwargs={"score_threshold": 0.1}
+        search_type="similarity_score_threshold",
+        search_kwargs={"score_threshold": config.retriever["score_threshold"]},
     )
     prompt_retriever = PromptTemplate.from_template(
         """
@@ -83,5 +95,11 @@ async def get_relevant_docs(
     )
 
     docs = await retriever_from_llm.ainvoke(str(translated_question.content))
+
+    docs = list({doc.metadata["element_id"]: doc for doc in docs}.values())
+    logger.info(f"Retrieved {len(docs)} unique documents from vector store")
+    logger.debug(
+        f"Document IDs: {[doc.metadata.get('element_id', 'N/A') for doc in docs]}"
+    )
 
     return docs

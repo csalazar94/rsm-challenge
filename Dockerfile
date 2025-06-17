@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r /code/requirements.txt
 FROM python:3.12-slim
 
 RUN apt-get update
-RUN apt-get install -y libmagic-dev poppler-utils tesseract-ocr libpq-dev libgl1
+RUN apt-get install -y libmagic-dev poppler-utils tesseract-ocr libpq-dev libgl1 pandoc
 RUN apt-get autoremove -y
 RUN apt-get clean -y
 RUN rm -rf /var/lib/apt/lists/*

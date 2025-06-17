@@ -1,3 +1,5 @@
+import os
+
 import sentry_sdk
 from fastapi import Depends, FastAPI
 from langchain_openai import ChatOpenAI
@@ -37,14 +39,17 @@ async def ingest(
 ):
     logger.info("Starting document ingestion process")
     try:
-        chunks = await loaders.get_chunks_from_pdf("sample.pdf")
-        logger.info(f"Loaded {len(chunks)} chunks from PDF")
         await vectorstore.adelete()
         logger.debug(f"Deleted existing documents in vectorstore.")
-        await vectorstore.aadd_documents(chunks)
-        logger.debug(f"Added {len(chunks)} documents to vectorstore.")
-        logger.info("Document ingestion completed successfully")
-        return chunks
+
+        file_names = os.listdir("files")
+        for file_name in file_names:
+            file_path = os.path.join("files", file_name)
+            chunks = await loaders.get_chunks_from_file(file_path)
+            logger.info(f"Loaded {len(chunks)} chunks from file: {file_path}")
+            await vectorstore.aadd_documents(chunks)
+            logger.debug(f"Added {len(chunks)} documents to vectorstore.")
+            logger.info("Document ingestion completed successfully")
     except Exception as e:
         logger.error(f"Document ingestion failed: {str(e)}")
         raise e

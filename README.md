@@ -1,12 +1,13 @@
 # RAG Microservice with FastAPI and PostgreSQL
 
-A Python-based Retrieval-Augmented Generation (RAG) microservice that ingests PDF documents, generates embeddings, and answers queries using OpenAI's language models with full observability.
+A Python-based Retrieval-Augmented Generation (RAG) microservice that ingests multiple document formats, generates embeddings, and answers queries using OpenAI's language models with full observability.
 
 ## Overview
 
 This microservice provides:
 
-- PDF document ingestion and chunking
+- PDF and RST document ingestion and chunking
+- Batch processing of multiple documents
 - Vector embeddings storage in PostgreSQL with pgvector
 - Multi-query retrieval for improved document search
 - Question answering with source attribution
@@ -20,6 +21,7 @@ This microservice provides:
 - **LangChain**: Document processing and LLM integration
 - **OpenAI**: Embeddings and chat completions
 - **Unstructured**: Advanced PDF processing
+- **Pandoc**: Document format conversion support
 - **Sentry**: Error monitoring (optional)
 - **LangSmith**: Observability (optional)
 
@@ -49,8 +51,10 @@ This microservice provides:
 3. **Add your PDF document**
 
    ```bash
-   # Place your PDF file as 'sample.pdf' in the project root
-   cp your-document.pdf sample.pdf
+   # Create a files directory and place your documents there
+   mkdir -p files
+   cp your-document.pdf files/
+   cp your-guide.rst files/
    ```
 
 4. **Start the services**
@@ -59,7 +63,7 @@ This microservice provides:
    docker-compose up -d
    ```
 
-5. **Ingest your document**
+5. **Ingest your documents**
 
    ```bash
    curl -X POST http://localhost:3000/ingest
@@ -88,21 +92,12 @@ Returns `200 OK` if the service is healthy.
 POST /ingest
 ```
 
-Processes the PDF document and stores embeddings in the vector database.
+Processes all documents in the `files` directory and stores embeddings in the vector database.
 
 **Response:**
 
 ```json
-[
-  {
-    "page_content": "Document chunk content...",
-    "metadata": {
-      "source": "sample.pdf",
-      "page_number": 1,
-      "element_id": "unique_id"
-    }
-  }
-]
+null
 ```
 
 ### Query Documents
@@ -126,7 +121,7 @@ POST /query
   "answer": "Generated answer based on document content",
   "sources": [
     {
-      "filename": "sample.pdf",
+      "filename": "document.pdf",
       "page": 1,
       "text": "Relevant passage from document"
     }
@@ -136,10 +131,12 @@ POST /query
 
 ## Features
 
-### Advanced PDF Processing
+### Advanced Document Processing
 
-- High-resolution text extraction
-- Table structure inference
+- **Multi-format Support**: PDF and reStructuredText (RST) files
+- **Batch Processing**: Automatically processes all files in the `files` directory
+- High-resolution text extraction for PDFs
+- Table structure inference for PDFs
 - Metadata filtering
 - Configurable chunking strategies
 
@@ -168,8 +165,9 @@ POST /query
 ### Document Processing
 
 - **Chunk Size**: Default 1500 characters
-- **Chunk Overlap**: Default 300 characters
-- **Processing Strategy**: High-resolution with table inference
+- **Chunk Overlap**: Default 0 characters (no overlap)
+- **PDF Processing Strategy**: High-resolution with table inference
+- **RST Processing**: Clean whitespace with pandoc support
 
 ### Retrieval
 
@@ -195,11 +193,13 @@ The application includes comprehensive logging:
 
 ### Common Issues
 
-1. **PDF Processing Fails**
+1. **Document Processing Fails**
 
-   - Ensure the PDF file exists as `sample.pdf`
-   - Check file size (max 50MB)
-   - Verify PDF is not corrupted
+   - Ensure documents exist in the `files/` directory
+   - Supported formats: PDF (.pdf) and reStructuredText (.rst)
+   - Check file size (max 50MB per file)
+   - Verify files are not corrupted
+   - Ensure pandoc is installed for RST processing
 
 2. **Database Connection Issues**
 

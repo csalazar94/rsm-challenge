@@ -39,8 +39,14 @@ async def get_relevant_docs(
     logger.info(f"Translating question: {original_question[:100]}...")
     translated_question = await llm.ainvoke(
         f"""If this text is not in English, translate it to English. 
-        If it's already in English, return it as is: {original_question}"
-        """
+        If it's already in English, return it as is.
+
+        Examples:
+        Spanish: "¿Cómo restablezco mi contraseña?" → "How do I reset my password?"
+        French: "Comment réinitialiser mon mot de passe?" → "How do I reset my password?"
+        English: "How do I reset my password?" → "How do I reset my password?"
+        
+        Text: {original_question}"""
     )
     logger.debug(f"Translated to: {translated_question.content}")
 

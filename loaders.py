@@ -2,7 +2,10 @@ import os
 
 from fastapi import HTTPException
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import UnstructuredPDFLoader
+from langchain_community.document_loaders import (
+    UnstructuredPDFLoader,
+    UnstructuredRSTLoader,
+)
 from langchain_community.vectorstores.utils import filter_complex_metadata
 from langchain_core.documents import Document
 from unstructured.cleaners.core import clean_extra_whitespace
@@ -10,41 +13,54 @@ from unstructured.cleaners.core import clean_extra_whitespace
 from logger import logger
 
 DEFAULT_CHUNK_SIZE = 1500
-DEFAULT_CHUNK_OVERLAP = 300
+DEFAULT_CHUNK_OVERLAP = 0
 PDF_PROCESSING_MODE = "elements"
 PDF_PROCESSING_STRATEGY = "hi_res"
 
 
-async def get_chunks_from_pdf(
+async def get_chunks_from_file(
     file_path: str,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
 ) -> list[Document]:
     """
-    Extract and chunk text content from a PDF file using high-resolution processing.
+    Asynchronously process a file and split it into document chunks.
 
-    This function loads a PDF file, processes it to extract structured content including
-    tables, filters metadata, and splits the content into manageable chunks for further
-    processing (e.g., embeddings, search indexing).
+    This function loads a supported file (PDF or RST), processes it using the appropriate
+    loader, filters metadata, and splits the content into chunks for downstream processing
+    such as vector embeddings or search indexing.
 
     Args:
-        file_path (str): Path to the PDF file to be processed
+        file_path (str): Path to the file to be processed. Must be an existing file
+            with a supported extension (.pdf or .rst).
+        chunk_size (int, optional): Maximum size of each text chunk in characters.
+            Defaults to DEFAULT_CHUNK_SIZE.
+        chunk_overlap (int, optional): Number of characters to overlap between
+            consecutive chunks to maintain context. Defaults to DEFAULT_CHUNK_OVERLAP.
 
     Returns:
-        list: List of document chunks with text content and metadata
+        list[Document]: List of Document objects representing the chunked content.
+            Each Document contains the text content and associated metadata.
 
     Raises:
-        HTTPException: 500 status code if PDF processing fails
+        HTTPException:
+            - 404 if the file does not exist
+            - 400 if the file type is unsupported or no documents found
+            - 413 if the file exceeds the 50MB size limit
+            - 500 if an unexpected error occurs during processing
 
     Note:
-        Uses high-resolution strategy for better text extraction quality and
-        infers table structure for improved document understanding.
+        Supported file types: PDF (.pdf) and reStructuredText (.rst)
+        Maximum file size: 50MB
+
+    Example:
+        >>> chunks = await get_chunks_from_file("document.pdf", chunk_size=1000, chunk_overlap=200)
+        >>> print(f"Generated {len(chunks)} chunks")
     """
     try:
-        logger.info(f"Starting PDF processing for: {file_path}")
+        _, ext = os.path.splitext(file_path)
 
-        # TODO: Add support for other file types
-        # TODO: Add support for different PDF processing modes and strategies
+        logger.info(f"Starting {ext} processing for: {file_path}")
 
         if not os.path.exists(file_path):
             logger.error(f"File not found: {file_path}")
@@ -53,11 +69,12 @@ async def get_chunks_from_pdf(
                 detail=f"File not found: {file_path}",
             )
 
-        if not file_path.lower().endswith(".pdf"):
+        supported_extensions = [".pdf", ".rst"]
+        if ext.lower() not in supported_extensions:
             logger.error(f"Unsupported file type: {file_path}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Unsupported file type: {file_path}. Only PDF files are supported.",
+                detail=f"Unsupported file type: {file_path}. Only {supported_extensions} files are supported.",
             )
 
         file_size = os.path.getsize(file_path)
@@ -67,26 +84,38 @@ async def get_chunks_from_pdf(
                 detail=f"File size exceeds the limit of 50MB: {file_path}",
             )
 
-        loader = UnstructuredPDFLoader(
-            file_path,
-            mode=PDF_PROCESSING_MODE,
-            strategy=PDF_PROCESSING_STRATEGY,
-            post_processors=[clean_extra_whitespace],
-            infer_table_structure=True,
-        )
-        logger.debug(
-            f"Configured PDF loader with mode={PDF_PROCESSING_MODE}, "
-            f"strategy={PDF_PROCESSING_STRATEGY}"
-        )
+        match ext.lower():
+            case ".pdf":
+                loader = UnstructuredPDFLoader(
+                    file_path,
+                    mode=PDF_PROCESSING_MODE,
+                    strategy=PDF_PROCESSING_STRATEGY,
+                    post_processors=[clean_extra_whitespace],
+                    infer_table_structure=True,
+                )
+                logger.debug(
+                    f"Configured PDF loader with mode={PDF_PROCESSING_MODE}, "
+                    f"strategy={PDF_PROCESSING_STRATEGY}"
+                )
+            case ".rst":
+                loader = UnstructuredRSTLoader(
+                    file_path, post_processors=[clean_extra_whitespace]
+                )
+                logger.debug("Configured RST loader with clean_extra_whitespace.")
+            case _:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Unsupported file type: {file_path}. Only PDF files are supported.",
+                )
 
         docs = await loader.aload()
         if not docs or len(docs) == 0:
-            logger.warning(f"No documents found in PDF: {file_path}")
+            logger.warning(f"No documents found in file: {file_path}")
             raise HTTPException(
                 status_code=400,
-                detail=f"No documents found in the PDF file: {file_path}",
+                detail=f"No documents found in the file: {file_path}",
             )
-        logger.debug(f"Loaded {len(docs)} documents from PDF.")
+        logger.debug(f"Loaded {len(docs)} documents from file.")
 
         filtered_docs = filter_complex_metadata(docs)
         logger.debug("Filtered complex metadata from documents.")
@@ -100,10 +129,10 @@ async def get_chunks_from_pdf(
         )
         chunks = text_splitter.split_documents(filtered_docs)
         logger.info(
-            f"Successfully processed PDF: {file_path} -> " f"{len(chunks)} chunks"
+            f"Successfully processed file: {file_path} -> " f"{len(chunks)} chunks"
         )
     except Exception as e:
-        logger.error(f"Failed to process PDF {file_path}: {str(e)}")
+        logger.error(f"Failed to process file {file_path}: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"An error occurred while processing file: {file_path}",

@@ -15,6 +15,7 @@ from logger import logger
 DEFAULT_CHUNK_SIZE = 1500
 DEFAULT_CHUNK_OVERLAP = 0
 PDF_PROCESSING_MODE = "elements"
+RST_PROCESSING_MODE = "elements"
 PDF_PROCESSING_STRATEGY = "hi_res"
 
 
@@ -99,7 +100,9 @@ async def get_chunks_from_file(
                 )
             case ".rst":
                 loader = UnstructuredRSTLoader(
-                    file_path, post_processors=[clean_extra_whitespace]
+                    file_path,
+                    mode=RST_PROCESSING_MODE,
+                    post_processors=[clean_extra_whitespace],
                 )
                 logger.debug("Configured RST loader with clean_extra_whitespace.")
             case _:

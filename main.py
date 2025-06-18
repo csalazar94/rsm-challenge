@@ -92,7 +92,7 @@ async def query(
         Question:
         {body.question}
 
-        Answer in the same language as the original question:
+        Answer:
         """
 
         llm_response = await llm.ainvoke(PROMPT)
